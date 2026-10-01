@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 type DrillItem = { id: string; name: string; count: number };
 
 export const Route = createFileRoute("/session/$examId/$subtestId/$materialId")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { mode: string; difficulty?: string; timer?: number; items?: DrillItem[] } => ({
     mode: (search["mode"] as string) ?? "drill",
     difficulty: (search["difficulty"] as string | undefined) ?? undefined,
     timer: search["timer"] ? Number(search["timer"]) : undefined,
