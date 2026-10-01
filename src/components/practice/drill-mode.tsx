@@ -1,13 +1,25 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Clock, Minus, Plus, X } from "lucide-react";
-import { exams, getQuestions, type Question } from "@/data/prototype";
+import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { Check, Minus, Plus } from "lucide-react";
+import { exams } from "@/data/prototype";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { CardGrid, SelectCard, StepHeader, fmtTime } from "./select-card";
+import { CardGrid, SelectCard, StepHeader } from "./select-card";
 
 type MaterialPick = { id: string; name: string };
-type Config = { items: { material: MaterialPick; count: number }[]; total: number };
-type Scope = { trail: string[]; materials: MaterialPick[] };
+type Scope = { trail: string[]; examId: string; subtestId: string; materials: MaterialPick[] };
+const DIFFICULTIES = [
+  { id: "easy", label: "Easy" },
+  { id: "medium", label: "Medium" },
+  { id: "hard", label: "Hard" },
+  { id: "mixed", label: "Mixed" },
+] as const;
+const TIMERS = [
+  { s: 0, label: "No Limit" },
+  { s: 30, label: "30 detik" },
+  { s: 60, label: "60 detik" },
+  { s: 90, label: "90 detik" },
+] as const;
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
 const FUND_SCOPES = ["Mathematics", "English", "Bahasa Indonesia", "Logika"];
 const COUNT_OPTIONS = [5, 10, 15, 20, 30];
@@ -17,19 +29,11 @@ export function DrillMode() {
   const [examId, setExamId] = useState<string | null>(null);
   const [subtestId, setSubtestId] = useState<string | null>(null);
   const [scope, setScope] = useState<Scope | null>(null);
-  const [run, setRun] = useState<Config | null>(null);
-  const [result, setResult] = useState<{ correct: number; total: number; answered: number; seconds: number; config: Config } | null>(null);
 
   const exam = exams.find((e) => e.id === examId);
   const subtest = exam?.subtests.find((s) => s.id === subtestId);
 
-  if (result && scope)
-    return <DrillResult {...result} trail={scope.trail} onAgain={() => { setResult(null); setRun(result.config); }} onConfigure={() => setResult(null)} />;
-
-  if (run && scope)
-    return <DrillRunner config={run} trail={scope.trail} onExit={() => setRun(null)} onDone={(r) => { setRun(null); setResult({ ...r, config: run }); }} />;
-
-  if (scope) return <DrillConfig scope={scope} onBack={() => setScope(null)} onStart={setRun} />;
+  if (scope) return <DrillConfig scope={scope} onBack={() => setScope(null)} />;
 
   if (examId === "fundamental")
     return (
@@ -37,7 +41,7 @@ export function DrillMode() {
         <StepHeader trail={["Drill", "Fundamental."]} title="Pilih subjek" onBack={() => setExamId(null)} />
         <CardGrid>
           {FUND_SCOPES.map((s) => (
-            <SelectCard key={s} title={s} onClick={() => setScope({ trail: ["Drill", "Fundamental.", s], materials: [{ id: s, name: s }] })} />
+            <SelectCard key={s} title={s} onClick={() => setScope({ trail: ["Drill", "Fundamental.", s], examId: "fundamental", subtestId: slug(s), materials: [{ id: slug(s), name: s }] })} />
           ))}
         </CardGrid>
       </>
@@ -70,17 +74,16 @@ export function DrillMode() {
 
   return (
     <DrillConfig
-      scope={{ trail: ["Drill", exam.name, subtest.name], materials: subtest.materials.map((m) => ({ id: m.id, name: m.name })) }}
+      scope={{ trail: ["Drill", exam.name, subtest.name], examId: exam.id, subtestId: subtest.id, materials: subtest.materials.map((m) => ({ id: m.id, name: m.name })) }}
       onBack={() => setSubtestId(null)}
-      onStart={(c) => {
-        setScope({ trail: ["Drill", exam.name, subtest.name], materials: subtest.materials.map((m) => ({ id: m.id, name: m.name })) });
-        setRun(c);
-      }}
     />
   );
 }
 
-function DrillConfig({ scope, onBack, onStart }: { scope: Scope; onBack: () => void; onStart: (c: Config) => void }) {
+function DrillConfig({ scope, onBack }: { scope: Scope; onBack: () => void }) {
+  const navigate = useNavigate();
+  const [difficulty, setDifficulty] = useState<string>("mixed");
+  const [timer, setTimer] = useState<number>(0);
   const [selected, setSelected] = useState<Record<string, number>>(() =>
     Object.fromEntries(scope.materials.map((m) => [m.id, 10])),
   );
@@ -167,147 +170,51 @@ function DrillConfig({ scope, onBack, onStart }: { scope: Scope; onBack: () => v
           );
         })}
       </div>
+      <Options label="Kesulitan" value={difficulty} onChange={setDifficulty} options={DIFFICULTIES.map((d) => ({ value: d.id, label: d.label }))} />
+      <Options label="Timer per soal" value={timer} onChange={setTimer} options={TIMERS.map((t) => ({ value: t.s, label: t.label }))} />
       <div className="sticky bottom-16 -mx-5 mt-4 bg-background px-5 pb-2 pt-3 md:static md:mx-0 md:px-0">
         <button
           type="button"
           disabled={total === 0}
-          onClick={() => onStart({ items, total })}
+          onClick={() =>
+            navigate({
+              to: "/session/$examId/$subtestId/$materialId",
+              params: { examId: scope.examId, subtestId: scope.subtestId, materialId: items.length === 1 ? items[0]!.material.id : "mix" },
+              search: { mode: "drill", difficulty, timer, items: items.map((it) => ({ id: it.material.id, name: it.material.name, count: it.count })) },
+            })
+          }
           className="tap w-full rounded-lg bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground shadow-soft disabled:opacity-40"
         >
           Start Drill
         </button>
         <p className="mt-2 text-center text-[12.5px] text-muted-foreground">
-          {total > 0 ? `${total} soal · ${items.length} materi` : "Pilih minimal satu materi"}
+          {total > 0 ? `Total ${total} soal · ${items.length} materi` : "Pilih minimal satu materi"}
         </p>
       </div>
     </div>
   );
 }
 
-function buildSet(config: Config): Question[] {
-  const base = getQuestions(99);
-  const list = Array.from({ length: config.total }, (_, i) => ({ ...base[i % base.length]!, id: `d${i}` }));
-  for (let i = list.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [list[i], list[j]] = [list[j]!, list[i]!];
-  }
-  return list;
-}
-
-function DrillRunner({ config, trail, onExit, onDone }: { config: Config; trail: string[]; onExit: () => void; onDone: (r: { correct: number; total: number; answered: number; seconds: number }) => void }) {
-  const questions = useMemo(() => buildSet(config), [config]);
-  const [i, setI] = useState(0);
-  const [picked, setPicked] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [correct, setCorrect] = useState(0);
-  const [elapsed, setElapsed] = useState(0);
-  const state = useRef({ correct: 0, answered: 0, elapsed: 0, done: false });
-  state.current.correct = correct;
-  state.current.elapsed = elapsed;
-
-  const finish = (answered: number) => {
-    if (state.current.done) return;
-    state.current.done = true;
-    onDone({ correct: state.current.correct, total: questions.length, answered, seconds: state.current.elapsed });
-  };
-
-  useEffect(() => {
-    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const q = questions[i]!;
-  const answered = submitted;
-  const remaining = questions.length - i - (answered ? 1 : 0);
-
-  const pick = (k: string) => {
-    if (answered) return;
-    setPicked(k);
-  };
-  const submit = () => {
-    if (!picked || submitted) return;
-    setSubmitted(true);
-    state.current.answered = i + 1;
-    if (picked === q.answer) setCorrect((c) => c + 1);
-  };
-  const next = () => {
-    if (i === questions.length - 1) return finish(i + 1);
-    setI(i + 1);
-    setPicked(null);
-    setSubmitted(false);
-  };
-
+function Options<T extends string | number>({ label, value, onChange, options }: { label: string; value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
   return (
-    <div className="mx-auto max-w-xl">
-      <div className="mb-4 flex items-center gap-3">
-        <button type="button" onClick={onExit} aria-label="Keluar dari drill" className="tap grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted">
-          <X size={18} />
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] text-muted-foreground">{trail.slice(1).join(" · ")}</p>
-          <p className="text-[13px] font-semibold tabular-nums">Soal {i + 1}/{questions.length} · {remaining} tersisa</p>
-        </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1 text-[13px] font-semibold tabular-nums">
-          <Clock size={14} aria-hidden="true" /> {fmtTime(elapsed)}
-        </span>
-      </div>
-      <div className="mb-5 h-1.5 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${((i + (answered ? 1 : 0)) / questions.length) * 100}%` }} />
-      </div>
-      <p className="text-[17px] font-medium leading-7">{q.prompt}</p>
-      <div className="mt-5 space-y-2">
-        {q.choices.map((c) => {
-          const tone = !answered ? c.key === picked ? "border-primary bg-primary-soft" : "border-border hover:border-border-strong" : c.key === q.answer ? "border-success bg-success/10" : c.key === picked ? "border-destructive bg-destructive/10" : "border-border opacity-50";
-          return (
-            <Button key={c.key} type="button" variant="outline" disabled={answered} aria-pressed={picked === c.key} onClick={() => pick(c.key)} className={cn("flex min-h-12 h-auto w-full items-center justify-start gap-3 whitespace-normal rounded-lg border-2 bg-surface px-4 py-3 text-left text-[15px] text-foreground", tone)}>
-              <span className="w-5 shrink-0 font-semibold text-muted-foreground">{c.key}</span>
-              <span className="flex-1">{c.text}</span>
-              {answered && c.key === q.answer && <Check size={17} className="text-success" />}
-            </Button>
-          );
-        })}
-      </div>
-      {!answered && <Button size="block" disabled={!picked} onClick={submit} className="mt-4">Answer</Button>}
-      {answered && (
-        <div className="mt-4" role="status">
-          <p className={cn("flex items-center gap-2 text-[14px] font-semibold", picked === q.answer ? "text-success" : "text-destructive")}>
-            {picked === q.answer ? <Check size={18} aria-hidden="true" /> : <X size={18} aria-hidden="true" />}
-            {picked === q.answer ? "Benar" : "Belum tepat"}
-          </p>
-          {picked !== q.answer && <p className="mt-2 text-[13.5px] font-medium">Jawaban benar: {q.answer}. {q.choices.find((choice) => choice.key === q.answer)?.text}</p>}
-          <p className="text-[13.5px] leading-6 text-muted-foreground">{q.explanation.why}</p>
-          <Button size="block" onClick={next} className="mt-3">{i === questions.length - 1 ? "Selesai" : "Continue"}</Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DrillResult({ correct, total, answered, seconds, config, trail, onAgain, onConfigure }: { correct: number; total: number; answered: number; seconds: number; config: Config; trail: string[]; onAgain: () => void; onConfigure: () => void }) {
-  const acc = answered ? Math.round((correct / answered) * 100) : 0;
-  const summary = acc >= 80 ? "Sangat baik — naikkan tingkat kesulitan berikutnya." : acc >= 60 ? "Cukup baik — ulangi untuk menguatkan pola." : "Perlu latihan lagi — coba jumlah soal lebih sedikit dan fokus.";
-  return (
-    <div className="mx-auto max-w-md py-4">
-      <p className="label-xs">{trail.slice(1).join(" · ")}</p>
-      <h2 className="mt-1 text-[24px] font-semibold tracking-tight">Drill selesai</h2>
-      <div className="mt-5 grid grid-cols-2 gap-2.5">
-        {[
-          ["Benar", `${correct}/${total}`],
-          ["Akurasi", `${acc}%`],
-          ["Dijawab", `${answered}/${total}`],
-          ["Waktu", fmtTime(seconds)],
-        ].map(([k, v]) => (
-          <div key={k} className="rounded-lg border border-border bg-surface p-4 shadow-soft">
-            <p className="label-xs">{k}</p>
-            <p className="mt-1 text-[22px] font-bold tabular-nums">{v}</p>
-          </div>
+    <div className="mt-5">
+      <p className="label-xs">{label}</p>
+      <div className="mt-2 grid grid-cols-4 gap-2" role="radiogroup" aria-label={label}>
+        {options.map((o) => (
+          <button
+            key={String(o.value)}
+            type="button"
+            role="radio"
+            aria-checked={value === o.value}
+            onClick={() => onChange(o.value)}
+            className={cn(
+              "tap min-h-10 rounded-lg border px-2 text-[13px] font-medium transition-colors",
+              value === o.value ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:border-border-strong",
+            )}
+          >
+            {o.label}
+          </button>
         ))}
-      </div>
-      <p className="mt-4 rounded-lg bg-muted px-4 py-3 text-[14px]">{summary}</p>
-      <p className="mt-2 text-[12.5px] text-muted-foreground">{config.items.map((it) => `${it.material.name} ${it.count}`).join(" · ")}</p>
-      <div className="mt-5 grid grid-cols-2 gap-2.5">
-        <button type="button" onClick={onConfigure} className="tap rounded-lg border border-border bg-surface py-3 text-[14px] font-semibold">Ubah konfigurasi</button>
-        <button type="button" onClick={onAgain} className="tap rounded-lg bg-primary py-3 text-[14px] font-semibold text-primary-foreground">Ulangi drill</button>
       </div>
     </div>
   );
