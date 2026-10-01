@@ -160,8 +160,8 @@ function Home() {
         </div>
         <Button asChild size="block" className="relative mt-3.5">
           <Link
-            to="/practice/$examId/$subtestId/$materialId"
-            params={{ examId: focus.examId, subtestId: focus.subtestId, materialId: focus.materialId }}
+            to="/practice/mode/$mode"
+            params={{ mode: "drill" }}
           >
             {lastSession ? "Continue" : "Start"} <ChevronRight className="size-4" />
           </Link>

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Check, Clock3, X } from "lucide-react";
 import { endSession, recordAttempt, startSession } from "@/lib/activity";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,14 @@ import { DesktopSidebar } from "@/components/app-shell";
 import { findExam, findMaterial, findSubtest, getQuestions } from "@/data/prototype";
 import { cn } from "@/lib/utils";
 
+type DrillItem = { id: string; name: string; count: number };
+
 export const Route = createFileRoute("/session/$examId/$subtestId/$materialId")({
   validateSearch: (search: Record<string, unknown>) => ({
     mode: (search["mode"] as string) ?? "drill",
+    difficulty: (search["difficulty"] as string | undefined) ?? undefined,
+    timer: search["timer"] ? Number(search["timer"]) : undefined,
+    items: Array.isArray(search["items"]) ? (search["items"] as DrillItem[]) : undefined,
   }),
   head: () => ({
     meta: [
@@ -26,12 +31,24 @@ export const Route = createFileRoute("/session/$examId/$subtestId/$materialId")(
 
 function SessionScreen() {
   const { examId, subtestId, materialId } = Route.useParams();
-  const { mode } = Route.useSearch();
+  const { mode, items, timer: timerSec = 0 } = Route.useSearch();
   const navigate = useNavigate();
   const exam = findExam(examId);
   const subtest = findSubtest(examId, subtestId);
-  const material = findMaterial(examId, subtestId, materialId);
-  const questions = getQuestions();
+  const found = findMaterial(examId, subtestId, materialId);
+  const material = found ?? (items?.length ? { name: items.map((i) => i.name).join(", ") } : undefined);
+  const questions = useMemo(() => {
+    if (!items?.length) return getQuestions();
+    const base = getQuestions(99);
+    let n = 0;
+    return items.flatMap((it) =>
+      Array.from({ length: it.count }, () => {
+        const b = base[n % base.length]!;
+        return { ...b, id: `${it.id}-${n++}`, materialName: it.name };
+      }),
+    );
+  }, [items]);
+  const [left, setLeft] = useState(timerSec);
 
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -53,6 +70,17 @@ function SessionScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examId, subtestId, materialId]);
 
+  useEffect(() => {
+    if (!timerSec || revealed) return;
+    if (left <= 0) {
+      timeUp();
+      return;
+    }
+    const t = window.setTimeout(() => setLeft((v) => v - 1), 1000);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [left, revealed, timerSec]);
+
   if (!material) throw notFound();
 
   const q = questions[index];
@@ -73,7 +101,7 @@ function SessionScreen() {
       examId,
       subtestId,
       materialId,
-      materialName: material!.name,
+      materialName: (q as { materialName?: string }).materialName ?? material!.name,
       questionId: q.id,
       selected,
       correct,
@@ -88,6 +116,16 @@ function SessionScreen() {
     requestAnimationFrame(() => {
       explanationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+  }
+
+  function timeUp() {
+    if (!q || revealed || !sessionId.current) return;
+    recordAttempt({
+      sessionId: sessionId.current, examId, subtestId, materialId,
+      materialName: (q as { materialName?: string }).materialName ?? material!.name,
+      questionId: q.id, selected: "", correct: false, durationMs: timerSec * 1000,
+    });
+    advance(correctCount);
   }
 
   function advance(score: number) {
@@ -109,6 +147,7 @@ function SessionScreen() {
     setIndex((i) => i + 1);
     setSelected(null);
     setRevealed(false);
+    setLeft(timerSec);
     questionStart.current = Date.now();
     window.scrollTo({ top: 0, behavior: "instant" });
   }
@@ -124,8 +163,9 @@ function SessionScreen() {
       <div className="mx-auto flex min-h-screen w-full max-w-[480px] flex-col px-5 pt-4 sm:px-6">
         <header className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 py-1">
           <Link
-            to="/practice/$examId/$subtestId/$materialId"
-            params={{ examId, subtestId, materialId }}
+            {...(items?.length || !found
+              ? { to: "/practice/mode/$mode" as const, params: { mode: "drill" } }
+              : { to: "/practice/$examId/$subtestId/$materialId" as const, params: { examId, subtestId, materialId } })}
             className="tap flex size-10 items-center justify-center rounded-lg text-foreground hover:bg-muted"
             aria-label="Leave session"
           >
@@ -134,8 +174,8 @@ function SessionScreen() {
           <span className="tabular text-center text-[14px] font-semibold" aria-label={`Question ${index + 1} of ${questions.length}`}>
             {index + 1}/{questions.length}
           </span>
-          <span className="tabular flex items-center justify-end gap-1.5 text-[13px] font-medium text-muted-foreground" aria-label={`Elapsed time ${time}`}>
-            <Clock3 size={15} aria-hidden="true" /> {time}
+          <span className="tabular flex items-center justify-end gap-1.5 text-[13px] font-medium text-muted-foreground" aria-label={timerSec ? `${left} seconds left` : `Elapsed time ${time}`}>
+            <Clock3 size={15} aria-hidden="true" /> {timerSec ? `${left}s` : time}
           </span>
         </header>
         <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Question progress" aria-valuenow={index + 1} aria-valuemin={0} aria-valuemax={questions.length}>
