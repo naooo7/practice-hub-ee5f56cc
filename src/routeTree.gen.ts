@@ -14,6 +14,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProgressRouteImport } from './routes/progress'
 import { Route as ResultRouteImport } from './routes/result'
 import { Route as ReviewRouteImport } from './routes/review'
+import { Route as PracticeIndexRouteImport } from './routes/practice/index'
 import { Route as PracticeExamIdIndexRouteImport } from './routes/practice/$examId/index'
 import { Route as PracticeModeModeRouteImport } from './routes/practice/mode/$mode'
 import { Route as PracticeExamIdSubtestIdIndexRouteImport } from './routes/practice/$examId/$subtestId/index'
@@ -43,6 +44,11 @@ const ResultRoute = ResultRouteImport.update({
 const ReviewRoute = ReviewRouteImport.update({
   id: '/review',
   path: '/review',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PracticeIndexRoute = PracticeIndexRouteImport.update({
+  id: '/practice/',
+  path: '/practice/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PracticeExamIdIndexRoute = PracticeExamIdIndexRouteImport.update({
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/progress': typeof ProgressRoute
   '/result': typeof ResultRoute
   '/review': typeof ReviewRoute
+  '/practice/': typeof PracticeIndexRoute
   '/practice/mode/$mode': typeof PracticeModeModeRoute
   '/practice/$examId/': typeof PracticeExamIdIndexRoute
   '/practice/$examId/$subtestId/$materialId': typeof PracticeExamIdSubtestIdMaterialIdRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/progress': typeof ProgressRoute
   '/result': typeof ResultRoute
   '/review': typeof ReviewRoute
+  '/practice': typeof PracticeIndexRoute
   '/practice/mode/$mode': typeof PracticeModeModeRoute
   '/practice/$examId': typeof PracticeExamIdIndexRoute
   '/practice/$examId/$subtestId/$materialId': typeof PracticeExamIdSubtestIdMaterialIdRoute
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/progress': typeof ProgressRoute
   '/result': typeof ResultRoute
   '/review': typeof ReviewRoute
+  '/practice/': typeof PracticeIndexRoute
   '/practice/mode/$mode': typeof PracticeModeModeRoute
   '/practice/$examId/': typeof PracticeExamIdIndexRoute
   '/practice/$examId/$subtestId/$materialId': typeof PracticeExamIdSubtestIdMaterialIdRoute
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/progress'
     | '/result'
     | '/review'
+    | '/practice/'
     | '/practice/mode/$mode'
     | '/practice/$examId/'
     | '/practice/$examId/$subtestId/$materialId'
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/progress'
     | '/result'
     | '/review'
+    | '/practice'
     | '/practice/mode/$mode'
     | '/practice/$examId'
     | '/practice/$examId/$subtestId/$materialId'
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/progress'
     | '/result'
     | '/review'
+    | '/practice/'
     | '/practice/mode/$mode'
     | '/practice/$examId/'
     | '/practice/$examId/$subtestId/$materialId'
@@ -156,6 +168,7 @@ export interface RootRouteChildren {
   ProgressRoute: typeof ProgressRoute
   ResultRoute: typeof ResultRoute
   ReviewRoute: typeof ReviewRoute
+  PracticeIndexRoute: typeof PracticeIndexRoute
   PracticeModeModeRoute: typeof PracticeModeModeRoute
   PracticeExamIdIndexRoute: typeof PracticeExamIdIndexRoute
   PracticeExamIdSubtestIdMaterialIdRoute: typeof PracticeExamIdSubtestIdMaterialIdRoute
@@ -198,6 +211,13 @@ declare module '@tanstack/react-router' {
       path: '/review'
       fullPath: '/review'
       preLoaderRoute: typeof ReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/practice/': {
+      id: '/practice/'
+      path: '/practice'
+      fullPath: '/practice/'
+      preLoaderRoute: typeof PracticeIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/practice/$examId/': {
@@ -244,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProgressRoute: ProgressRoute,
   ResultRoute: ResultRoute,
   ReviewRoute: ReviewRoute,
+  PracticeIndexRoute: PracticeIndexRoute,
   PracticeModeModeRoute: PracticeModeModeRoute,
   PracticeExamIdIndexRoute: PracticeExamIdIndexRoute,
   PracticeExamIdSubtestIdMaterialIdRoute:
