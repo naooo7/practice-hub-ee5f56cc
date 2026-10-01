@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Preserve the existing Fundamental. route structure and shared app shell; Practice mode hierarchy changes stay within `/practice` and its existing mode route so unrelated screens remain stable.
