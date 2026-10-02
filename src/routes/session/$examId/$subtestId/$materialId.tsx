@@ -91,8 +91,9 @@ function SessionScreen() {
   const showFeedback = mode !== "latihan";
   const time = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
 
-  function submit() {
-    if (!q || !selected || revealed || !sessionId.current) return;
+  function submit(pick: string | null = selected) {
+    if (!q || !pick || revealed || !sessionId.current) return;
+    const selected = pick;
     const correct = selected === q.answer;
     const nextCorrect = correctCount + (correct ? 1 : 0);
     if (correct) setCorrectCount(nextCorrect);
@@ -206,7 +207,7 @@ function SessionScreen() {
                     type="button"
                     variant="outline"
                     aria-pressed={chosen}
-                    onClick={() => { if (!revealed) setSelected(c.key); }}
+                    onClick={() => { if (revealed) return; setSelected(c.key); if (mode === "drill") submit(c.key); }}
                     className={cn(
                       "flex min-h-12 h-auto w-full items-center justify-start gap-2.5 whitespace-normal rounded-lg border px-3.5 py-2.5 text-left text-foreground shadow-none",
                       tone,
@@ -244,6 +245,13 @@ function SessionScreen() {
                   <span className={cn("text-[13px] font-semibold", isCorrect ? "text-success" : "text-destructive")}>{isCorrect ? "Correct" : "Incorrect"}</span>
                 </div>
                 <h2 className="mt-5 text-[23px] font-semibold leading-[1.3]">{isCorrect ? "Jawaban kamu benar!" : "Jawaban kamu belum tepat."}</h2>
+                <div className="mt-5 flex items-center gap-3 rounded-lg border border-success/40 bg-success/5 px-4 py-3.5">
+                  <Check className="shrink-0 text-success" size={18} aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-medium text-muted-foreground">Correct answer</p>
+                    <p className="mt-0.5 text-[14px] font-semibold leading-snug">{q.answer}. {correctChoice?.text}</p>
+                  </div>
+                </div>
                 <section className="mt-8 border-t border-border pt-6" aria-labelledby="why-heading">
                   <h3 id="why-heading" className="text-[18px] font-semibold">Why?</h3>
                   <p className="mt-3 text-[15px] leading-[1.65] text-foreground">{q.explanation.why}</p>
@@ -261,13 +269,6 @@ function SessionScreen() {
                     </ol>
                   )}
                 </section>
-                <div className="mt-8 flex items-center gap-3 rounded-lg border border-success/40 bg-success/5 px-4 py-3.5">
-                  <Check className="shrink-0 text-success" size={18} aria-hidden="true" />
-                  <div className="min-w-0">
-                    <p className="text-[12px] font-medium text-muted-foreground">Correct answer</p>
-                    <p className="mt-0.5 text-[14px] font-semibold leading-snug">{q.answer}. {correctChoice?.text}</p>
-                  </div>
-                </div>
               </div>
             )}
           </div>
@@ -279,7 +280,7 @@ function SessionScreen() {
               {last ? "See result" : "Next question"}
             </Button>
           ) : (
-            <Button size="block" onClick={submit} disabled={!selected}>
+            <Button size="block" onClick={() => submit()} disabled={!selected}>
               Answer
             </Button>
           )}
