@@ -1,7 +1,43 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeft, ChevronRight, Lock } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Brain,
+  BriefcaseBusiness,
+  Calculator,
+  ChevronRight,
+  ClipboardCheck,
+  FileText,
+  GraduationCap,
+  Languages,
+  Landmark,
+  Lightbulb,
+  Lock,
+  Monitor,
+  Shapes,
+  Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/** A restrained, shared visual vocabulary for Practice categories and materials. */
+export function practiceIconFor(label: string): LucideIcon {
+  const value = label.toLowerCase();
+
+  if (/matemat|math|aritmet|numer|kuant|angka|algebra|persen|rasio|deret/.test(value)) return Calculator;
+  if (/logika|logic|penalaran|analogi|pola|kognitif/.test(value)) return Brain;
+  if (/geometri|geometry|bangun|shape/.test(value)) return Shapes;
+  if (/english|inggris|tbi|grammar|structure|tenses|clause|vocab/.test(value)) return Languages;
+  if (/bahasa indonesia|lbi|eyd|spok|kalimat|kata|sinonim|antonim|bacaan|reading|literasi/.test(value)) return FileText;
+  if (/twk|nasional|negara|integritas|bela|pilar/.test(value)) return Landmark;
+  if (/tkp|pelayanan|jejaring|sosial|kepribadian|papi/.test(value)) return Users;
+  if (/teknologi|informasi/.test(value)) return Monitor;
+  if (/psikotes|kerja/.test(value)) return BriefcaseBusiness;
+  if (/utbk|tps|akademik|tpa/.test(value)) return GraduationCap;
+  if (/try out|paket|ujian|skd/.test(value)) return ClipboardCheck;
+  if (/fundamental|dasar/.test(value)) return Lightbulb;
+  return BookOpen;
+}
 
 /** Shared selection-card language for every Practice mode. */
 export function SelectCard({
@@ -23,6 +59,8 @@ export function SelectCard({
   badge?: string | undefined;
   onClick: () => void;
 }) {
+  const CardIcon = Icon ?? practiceIconFor(`${title} ${description ?? ""}`);
+
   return (
     <button
       type="button"
@@ -33,11 +71,9 @@ export function SelectCard({
         locked && "opacity-60",
       )}
     >
-      {Icon && (
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
-          <Icon size={19} strokeWidth={1.8} aria-hidden="true" />
-        </span>
-      )}
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
+        <CardIcon size={19} strokeWidth={1.8} aria-hidden="true" />
+      </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="truncate text-[15px] font-semibold">{title}</span>
