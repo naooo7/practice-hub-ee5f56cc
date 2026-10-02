@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Check, Minus, Plus } from "lucide-react";
 import { exams } from "@/data/prototype";
 import { cn } from "@/lib/utils";
-import { CardGrid, SelectCard, StepHeader } from "./select-card";
+import { CardGrid, practiceIconFor, SelectCard, StepHeader } from "./select-card";
 
 type MaterialPick = { id: string; name: string };
 type Scope = { trail: string[]; examId: string; subtestId: string; materials: MaterialPick[] };
@@ -108,6 +108,7 @@ function DrillConfig({ scope, onBack }: { scope: Scope; onBack: () => void }) {
         {scope.materials.map((m) => {
           const count = selected[m.id];
           const active = count !== undefined;
+          const MaterialIcon = practiceIconFor(m.name);
           return (
             <div
               key={m.id}
@@ -125,11 +126,14 @@ function DrillConfig({ scope, onBack }: { scope: Scope; onBack: () => void }) {
                 >
                   {active && <Check size={13} strokeWidth={3} aria-hidden="true" />}
                 </span>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                  <MaterialIcon size={17} strokeWidth={1.8} aria-hidden="true" />
+                </span>
                 <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{m.name}</span>
                 {active && <span className="shrink-0 text-[12.5px] tabular-nums text-muted-foreground">{count} soal</span>}
               </button>
               {active && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 pl-8">
+                <div className="mt-3 flex flex-wrap items-center gap-2 pl-[68px]">
                   {COUNT_OPTIONS.map((n) => (
                     <button
                       key={n}
