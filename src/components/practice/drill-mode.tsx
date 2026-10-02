@@ -15,9 +15,9 @@ const DIFFICULTIES = [
 ] as const;
 const TIMERS = [
   { s: 0, label: "No Limit" },
-  { s: 30, label: "30 detik" },
-  { s: 60, label: "60 detik" },
-  { s: 90, label: "90 detik" },
+  { s: 30, label: "30 sec" },
+  { s: 60, label: "60 sec" },
+  { s: 90, label: "90 sec" },
 ] as const;
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
